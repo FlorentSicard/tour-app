@@ -14,7 +14,7 @@ class TourApp extends StatelessWidget {
         colorSchemeSeed: Colors.deepOrange,
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFF121212),
-        cardTheme: const CardTheme(
+        cardTheme: const CardThemeData(
           color: Color(0xFF1E1E1E),
           elevation: 2,
         ),

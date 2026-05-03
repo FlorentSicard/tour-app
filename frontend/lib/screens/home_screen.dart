@@ -10,6 +10,38 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+
+    if (auth.activeGroupId == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('TourApp'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () {
+                ref.read(authProvider.notifier).logout();
+                context.go('/login');
+              },
+            ),
+          ],
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Create your first group to get started'),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => _showCreateGroupDialog(context, ref),
+                child: const Text('Create Group'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final tours = ref.watch(toursProvider);
 
     return Scaffold(
@@ -45,6 +77,29 @@ class HomeScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () => _showCreateTourDialog(context, ref),
+      ),
+    );
+  }
+
+  void _showCreateGroupDialog(BuildContext context, WidgetRef ref) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('New Group'),
+        content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Group name')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              if (ctrl.text.isEmpty) return;
+              final res = await ref.read(dioProvider).post('/groups/', data: {'name': ctrl.text});
+              ref.read(authProvider.notifier).setActiveGroup(res.data['id']);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('Create'),
+          ),
+        ],
       ),
     );
   }

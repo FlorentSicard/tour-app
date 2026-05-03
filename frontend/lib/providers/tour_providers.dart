@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tourapp/providers/api_provider.dart';
+import 'package:tourapp/providers/auth_provider.dart';
 
 final toursProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final auth = ref.watch(authProvider);
+  if (auth.token == null || auth.activeGroupId == null) return [];
   final dio = ref.read(dioProvider);
   final response = await dio.get('/tours/');
   return List<Map<String, dynamic>>.from(response.data);

@@ -68,8 +68,12 @@ API available at `http://localhost:8000`. Swagger docs at `http://localhost:8000
 ```bash
 cd frontend
 flutter pub get
-flutter run
+flutter run -d web-server --web-port=8080
 ```
+
+Open `http://localhost:8080` in your browser (Brave, Chrome, or any Chromium-based browser).
+
+If Chrome is installed, you can also use `flutter run -d chrome` to launch directly.
 
 ## Features
 

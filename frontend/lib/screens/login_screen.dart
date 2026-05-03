@@ -22,15 +22,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final dio = ref.read(dioProvider);
       final path = _isRegister ? '/auth/register' : '/auth/login';
       final body = _isRegister
           ? {'name': _nameCtrl.text, 'email': _emailCtrl.text, 'password': _passwordCtrl.text}
           : {'email': _emailCtrl.text, 'password': _passwordCtrl.text};
-      final res = await dio.post(path, data: body);
+      final res = await ref.read(dioProvider).post(path, data: body);
       ref.read(authProvider.notifier).setToken(res.data['access_token']);
 
-      final groups = await dio.get('/groups/');
+      final groups = await ref.read(dioProvider).get('/groups/');
       final groupList = List<Map<String, dynamic>>.from(groups.data);
       if (groupList.isNotEmpty) {
         ref.read(authProvider.notifier).setActiveGroup(groupList.first['id']);

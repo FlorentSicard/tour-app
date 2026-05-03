@@ -1,24 +1,22 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tourapp/providers/auth_provider.dart';
 
 const String baseUrl = 'http://localhost:8000';
 
-final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(BaseOptions(baseUrl: baseUrl));
+String? authToken;
+String? activeGroupId;
 
-  dio.interceptors.add(InterceptorsWrapper(
+final dio = Dio(BaseOptions(baseUrl: baseUrl))
+  ..interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) {
-      final auth = ref.read(authProvider);
-      if (auth.token != null) {
-        options.headers['Authorization'] = 'Bearer ${auth.token}';
+      if (authToken != null) {
+        options.headers['Authorization'] = 'Bearer $authToken';
       }
-      if (auth.activeGroupId != null) {
-        options.headers['X-Group-ID'] = auth.activeGroupId;
+      if (activeGroupId != null) {
+        options.headers['X-Group-ID'] = activeGroupId;
       }
       handler.next(options);
     },
   ));
 
-  return dio;
-});
+final dioProvider = Provider<Dio>((ref) => dio);
