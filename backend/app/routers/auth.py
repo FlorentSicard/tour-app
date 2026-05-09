@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 
 from app.auth import create_access_token, hash_password, verify_password
 from app.database import get_session
-from app.models import User
+from app.models import Group
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -16,7 +16,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
+    group_id: str
     password: str
 
 
@@ -27,18 +27,21 @@ class TokenResponse(BaseModel):
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(body: RegisterRequest, session: Session = Depends(get_session)):
-    existing = session.exec(select(User).where(User.email == body.email)).first()
+    existing = session.exec(select(Group).where(Group.email == body.email)).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-    user = User(name=body.name, email=body.email, password_hash=hash_password(body.password))
-    session.add(user)
+    group = Group(name=body.name, email=body.email, password_hash=hash_password(body.password))
+    session.add(group)
     session.commit()
-    return TokenResponse(access_token=create_access_token(user.id))
+    session.refresh(group)
+    return TokenResponse(access_token=create_access_token(group.id))
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.email == body.email)).first()
-    if not user or not verify_password(body.password, user.password_hash):
+    group = session.exec(select(Group).where(Group.id == body.group_id)).first()
+    if not group:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    if not verify_password(body.password, group.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    return TokenResponse(access_token=create_access_token(user.id))
+    return TokenResponse(access_token=create_access_token(group.id))

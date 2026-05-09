@@ -3,9 +3,9 @@ import 'package:tourapp/providers/api_provider.dart';
 
 class AuthState {
   final String? token;
-  final String? activeGroupId;
+  final String? selectedGroupId;
 
-  const AuthState({this.token, this.activeGroupId});
+  const AuthState({this.token, this.selectedGroupId});
 
   bool get isAuthenticated => token != null;
 }
@@ -13,20 +13,14 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
-  void setToken(String token) {
-    state = AuthState(token: token, activeGroupId: state.activeGroupId);
+  void setSession({required String token, required String selectedGroupId}) {
+    state = AuthState(token: token, selectedGroupId: selectedGroupId);
     authToken = token;
-  }
-
-  void setActiveGroup(String groupId) {
-    state = AuthState(token: state.token, activeGroupId: groupId);
-    activeGroupId = groupId;
   }
 
   void logout() {
     state = const AuthState();
     authToken = null;
-    activeGroupId = null;
   }
 }
 

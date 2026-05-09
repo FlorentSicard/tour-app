@@ -1,128 +1,208 @@
 # TourApp
 
-Operational dashboard for touring bands. Manage daily tour logistics, schedules, and checklists across multiple groups.
+TourApp is an operational dashboard for touring bands.
+
+It combines a FastAPI backend and a Flutter frontend to manage:
+
+- tours and isolated concert dates,
+- concert/day-off logistics,
+- schedule visibility (`public` / `private`),
+- PDF exports (day, roadmap, full tour compilation),
+- and UX helpers (i18n/theme toggle, completeness badges, inline field guidance).
 
 ## Tech Stack
 
-- **Backend**: FastAPI + SQLModel + MariaDB
-- **Frontend**: Flutter + Riverpod + Dio
-- **Auth**: JWT with multi-tenant group context (X-Group-ID header)
-- **Database**: MariaDB (Docker)
+- **Backend**: FastAPI, SQLModel, MariaDB, ReportLab, pypdf
+- **Frontend**: Flutter, Riverpod, Dio, GoRouter
+- **Auth model**: group-based JWT (`group_id` in token)
+- **Database**: MariaDB 11 (via Docker Compose)
+
+## Current Functional Scope (aligned with specs v1 → v11)
+
+### Authentication & tenancy
+
+- Group-based registration/login:
+  - register with `name + email + password`
+  - login with `group_id + password`
+- JWT carries `group_id` and scopes all protected data access.
+- No `X-Group-ID` header workflow.
+
+### Tours & dates
+
+- Create tours and days.
+- Day types:
+  - `concert`
+  - `day_off`
+- Isolated date support (`tour_id = null`, forced `concert`).
+- In home timeline:
+  - mixed list (tours + isolated dates),
+  - tour item displays chronological range: `first_date → last_date`.
+
+### Day screen rules
+
+- `concert` requires `address`.
+- `day_off` has restricted display behavior.
+- Free-text sections (`contact_text`, `finance_text`/Deal, `day_note`, `hebergement`) with max length 3000.
+- Concert tracking booleans:
+  - `promo_sent`
+  - `coplateau`
+  - conditional: `roadmap_sent`, `backline_conversation`
+- If `coplateau` is turned off, dependent booleans are reset to `false`.
+
+### Schedule visibility
+
+- Each schedule item has `visibility` in `{public, private}`.
+- Visibility is editable.
+- UI explains public/private meaning in FR/EN.
+
+### PDF exports
+
+- Day full export: `GET /days/{id}/export/full`
+  - `day_off` export is restricted to visible fields (type/date/hebergement/note).
+- Day roadmap export: `GET /days/{id}/export/roadmap`
+  - only `public` schedule items,
+  - blocked for `day_off`,
+  - blocked if no public schedule.
+- Tour full export: `GET /tours/{id}/export/full`
+  - compiled PDF ordered by date,
+  - includes cover page,
+  - cover lists non-`day_off` dates only,
+  - fallback `-` for missing city/venue.
+- Tracking block removed from full PDF rendering.
+
+### UX/i18n additions
+
+- Global theme and language switching (FR/EN, immediate apply, locally persisted).
+- Register screen helper text below each field.
+- Completeness badges (`❗`) on sections/cards with tooltip listing missing required sections.
 
 ## Project Structure
 
-```
-tour/
-  backend/           # FastAPI API server
+```text
+tour-app/
+  backend/
     app/
-      routers/       # API endpoints (auth, groups, tours, days, schedule, checklists)
-      services/      # Business logic (day duplication, reminder job)
-      models.py      # SQLModel database models
-      auth.py        # JWT auth + multi-tenant middleware
-      config.py      # Environment configuration
-      database.py    # Database engine + session
-      main.py        # FastAPI app entrypoint
+      routers/         # auth, groups, tours, days, schedule_items
+      services/        # duplicate_day, pdf generation, reminders
+      models.py
+      auth.py
+      config.py
+      database.py
+      main.py
     requirements.txt
-    .env
-  frontend/          # Flutter mobile/web app
+  frontend/
     lib/
-      providers/     # Riverpod state management (auth, API, tours)
-      screens/       # UI screens (login, home, tour, day detail)
-      app.dart       # App widget + dark theme
-      router.dart    # GoRouter navigation
-      main.dart      # Flutter entrypoint
+      providers/
+      screens/
+      utils/
+      widgets/
+      l10n/
+      app.dart
+      router.dart
+      main.dart
     pubspec.yaml
-  docker-compose.yml # MariaDB local instance
+  docker-compose.yml
+  markdown-v*.md       # feature/spec history
 ```
 
 ## Getting Started
 
-### Prerequisites
+### Prérequis (important)
 
-- Docker
-- Python 3.11+
-- Flutter SDK 3.2+
+1. **Docker + Docker Compose v2**
+   - Required to run MariaDB (`docker compose up -d`).
 
-### Database
+2. **Python version for backend**
+   - Use **Python 3.11 or 3.12 recommended**.
+   - ⚠ **Do not use Python 3.14 currently** for backend runtime with this dependency set (`sqlmodel==0.0.22`, current pydantic stack), as model import fails with:
+     - `pydantic.errors.PydanticUserError: Field 'id' requires a type annotation`
 
-```bash
+3. **Flutter / Dart**
+   - Flutter SDK compatible with project constraint:
+     - `Dart >=3.2.0 <4.0.0` (from `pubspec.yaml`).
+
+4. **OS tools**
+   - Git
+   - A browser for Flutter web target
+
+### Backend configuration
+
+Backend reads environment variables from `backend/.env` (optional; defaults exist in `app/config.py`):
+
+- `DATABASE_URL` (default: `mysql+pymysql://tourapp:tourpass@localhost:3306/tourapp`)
+- `JWT_SECRET` (default is development-only; change in real environments)
+- `JWT_ALGORITHM` (default `HS256`)
+- `JWT_EXPIRE_MINUTES` (default `1440`)
+
+### Start database
+
+```powershell
+cd <repo-root>
 docker compose up -d
 ```
 
-MariaDB will be available on `localhost:3306` with database `tourapp`.
+### Start backend
 
-### Backend
-
-```bash
-cd backend
+```powershell
+cd <repo-root>\backend
 python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-API available at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
+Backend URLs:
 
-### Frontend
+- API: `http://localhost:8000`
+- Docs: `http://localhost:8000/docs`
+- Health: `http://localhost:8000/health`
 
-```bash
-cd frontend
+### Start frontend (web)
+
+```powershell
+cd <repo-root>\frontend
 flutter pub get
-flutter run -d web-server --web-port=8080
+flutter run -d chrome
 ```
 
-Open `http://localhost:8080` in your browser (Brave, Chrome, or any Chromium-based browser).
+## API Summary (current)
 
-If Chrome is installed, you can also use `flutter run -d chrome` to launch directly.
+### Public / auth
 
-## Features
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /groups/` (public list of groups)
 
-- **Multi-tenant**: Users can belong to multiple bands/groups, switch context via group selector
-- **Tour management**: Create tours, add days (concert/day off) with logistics, contacts, finances
-- **Schedule**: Time-based schedule items per day
-- **Checklists**: Checklist items with due dates, assignment, and overdue flagging
-- **Day duplication**: Clone a day with its schedule and incomplete checklist items (due dates recalculated)
-- **Reminder job**: Background task (APScheduler, daily at midnight) flags overdue checklist items
+### Protected (Bearer JWT)
 
-## API Endpoints
+- `GET /groups/me`
+- `POST /tours/`
+- `GET /tours/`
+- `GET /tours/{tour_id}`
+- `DELETE /tours/{tour_id}`
+- `GET /tours/{tour_id}/export/full`
+- `POST /days/`
+- `GET /days/?tour_id=...`
+- `GET /days/{day_id}`
+- `PATCH /days/{day_id}`
+- `DELETE /days/{day_id}`
+- `POST /days/{day_id}/duplicate`
+- `GET /days/{day_id}/export/full`
+- `GET /days/{day_id}/export/roadmap`
+- `POST /days/{day_id}/schedule/`
+- `GET /days/{day_id}/schedule/`
+- `PATCH /days/{day_id}/schedule/{item_id}`
+- `DELETE /days/{day_id}/schedule/{item_id}`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /auth/register | Register a new user |
-| POST | /auth/login | Login, get JWT token |
-| POST | /groups/ | Create a group |
-| GET | /groups/ | List user's groups |
-| POST | /tours/ | Create a tour |
-| GET | /tours/ | List tours |
-| GET | /tours/:id | Get tour |
-| DELETE | /tours/:id | Delete tour |
-| POST | /days/ | Create a day |
-| GET | /days/ | List days (optional ?tour_id=) |
-| GET | /days/:id | Get day detail |
-| PATCH | /days/:id | Update day |
-| DELETE | /days/:id | Delete day |
-| POST | /days/:id/duplicate | Duplicate a day |
-| POST | /days/:id/schedule/ | Add schedule item |
-| GET | /days/:id/schedule/ | List schedule items |
-| DELETE | /days/:id/schedule/:itemId | Delete schedule item |
-| POST | /days/:id/checklist | Add checklist item |
-| GET | /days/:id/checklist | List checklist items |
-| PATCH | /checklist-items/:id | Update checklist item |
-| POST | /checklist-templates | Create template |
-| GET | /checklist-templates | List templates |
+## Notes about legacy docs/spec history
 
-All endpoints except /auth/* and /groups/* require the `X-Group-ID` header.
+- The repository still contains earlier design specs (`markdown-v1` … `markdown-v11`).
+- Some older sections (e.g. checklist/reminder expectations) are historical and no longer part of the active product behavior.
+- Runtime source of truth is the current code under `backend/app` and `frontend/lib`.
 
-## Future Improvements
+## Troubleshooting
 
-- Push notifications for overdue checklist items
-- Real-time sync (WebSockets)
-- Offline mode with local SQLite cache
-- File attachments (riders, contracts, stage plots)
-- Export tour data (PDF, CSV)
-- Group member invitation system with email
-- Role-based permissions (admin/member/viewer enforcement)
-- Setlist management per day
-- Budget tracking and expense reports
-- Map integration for venue locations and routing
-- Desktop-optimized layout with dashboard view
+- If backend fails at startup/import with Pydantic model errors on Python 3.14, switch to Python 3.11/3.12 and recreate the virtual environment.
+- If roadmap export fails with conflict:
+  - verify the day is not `day_off`,
+  - verify at least one schedule item is `public`.

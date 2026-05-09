@@ -1,8 +1,8 @@
-from datetime import date, timedelta
+from datetime import date
 
 from sqlmodel import Session, select
 
-from app.models import ChecklistItem, Day, ScheduleItem, gen_uuid
+from app.models import Day, ScheduleItem
 
 
 def duplicate_day(session: Session, source_day: Day, new_date: date) -> Day:
@@ -15,6 +15,15 @@ def duplicate_day(session: Session, source_day: Day, new_date: date) -> Day:
         type=source_day.type,
         city=source_day.city,
         venue=source_day.venue,
+    address=source_day.address,
+    promo_sent=source_day.promo_sent,
+    coplateau=source_day.coplateau,
+    roadmap_sent=source_day.roadmap_sent,
+    backline_conversation=source_day.backline_conversation,
+        day_note=source_day.day_note,
+        contact_text=source_day.contact_text,
+        finance_text=source_day.finance_text,
+    hebergement=source_day.hebergement,
         notes=source_day.notes,
         contact_name=source_day.contact_name,
         contact_phone=source_day.contact_phone,
@@ -29,20 +38,13 @@ def duplicate_day(session: Session, source_day: Day, new_date: date) -> Day:
 
     items = session.exec(select(ScheduleItem).where(ScheduleItem.day_id == source_day.id)).all()
     for si in items:
-        session.add(ScheduleItem(day_id=new_day.id, time=si.time, label=si.label, notes=si.notes))
-
-    checklists = session.exec(
-        select(ChecklistItem).where(ChecklistItem.day_id == source_day.id, ChecklistItem.is_done == False)
-    ).all()
-    for ci in checklists:
-        new_due = ci.due_date + delta if ci.due_date else None
         session.add(
-            ChecklistItem(
+            ScheduleItem(
                 day_id=new_day.id,
-                template_id=ci.template_id,
-                label=ci.label,
-                due_date=new_due,
-                assigned_to=ci.assigned_to,
+                time=si.time,
+                label=si.label,
+                notes=si.notes,
+                visibility=si.visibility,
             )
         )
 
