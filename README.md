@@ -89,6 +89,8 @@ tour-app/
       config.py
       database.py
       main.py
+    Dockerfile
+    .dockerignore
     requirements.txt
   frontend/
     lib/
@@ -100,10 +102,69 @@ tour-app/
       app.dart
       router.dart
       main.dart
+    Dockerfile
+    .dockerignore
+    nginx.conf
     pubspec.yaml
   docker-compose.yml
+  .env.example
   markdown-v*.md       # feature/spec history
 ```
+
+## Production Deployment (Docker)
+
+The application is deployed via Docker Compose using pre-built images hosted on Docker Hub.
+
+### Images
+
+| Service  | Image                                      |
+|----------|--------------------------------------------|
+| Backend  | `<dockerhub_username>/tourapp-backend`     |
+| Frontend | `<dockerhub_username>/tourapp-frontend`    |
+| Database | `mariadb:11` (official image)              |
+
+The frontend image is a multi-stage build: Flutter web compiled to static files, served by Nginx.
+The backend is not exposed publicly — Nginx proxies `/api/` to the backend on the internal Docker network.
+
+### Environment variables
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable              | Description                              |
+|-----------------------|------------------------------------------|
+| `DOCKER_HUB_USERNAME` | Docker Hub account name                  |
+| `IMAGE_TAG`           | Image tag to deploy (default: `latest`)  |
+| `DB_ROOT_PASSWORD`    | MariaDB root password                    |
+| `DB_NAME`             | Database name                            |
+| `DB_USER`             | Database user                            |
+| `DB_PASSWORD`         | Database password                        |
+| `JWT_SECRET`          | JWT signing secret                       |
+| `JWT_ALGORITHM`       | JWT algorithm (default: `HS256`)         |
+| `JWT_EXPIRE_MINUTES`  | JWT expiry in minutes (default: `1440`)  |
+
+### Deploy
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### Update to a new version
+
+Set `IMAGE_TAG` in `.env` to the new version, then:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+The database volume (`db_data`) is preserved across restarts.
+
+---
 
 ## Getting Started
 
