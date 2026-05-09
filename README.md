@@ -153,6 +153,24 @@ docker compose pull
 docker compose up -d
 ```
 
+### CI/CD (GitHub Actions)
+
+A push on `master` triggers the workflow `.github/workflows/deploy.yml` which:
+
+1. Builds and pushes `tourapp-backend` and `tourapp-frontend` images to Docker Hub (tagged with short commit SHA + `latest`).
+2. Connects to the production server via SSH, updates `IMAGE_TAG` in `.env`, then runs `docker compose pull && up -d`.
+
+#### Required GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `DOCKERHUB_USERNAME` | Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub access token |
+| `SERVER_HOST` | Production server IP or hostname |
+| `SERVER_USER` | SSH username |
+| `SERVER_SSH_KEY` | SSH private key |
+| `DEPLOY_PATH` | Absolute path to the docker-compose directory on the server |
+
 ### Update to a new version
 
 Set `IMAGE_TAG` in `.env` to the new version, then:
@@ -267,3 +285,15 @@ flutter run -d chrome
 - If roadmap export fails with conflict:
   - verify the day is not `day_off`,
   - verify at least one schedule item is `public`.
+
+## TODO / Deployment Checklist
+
+- [ ] Configure GitHub Secrets in the repository settings:
+  - [ ] `DOCKERHUB_USERNAME` — Docker Hub username
+  - [ ] `DOCKERHUB_TOKEN` — Docker Hub access token
+  - [ ] `SERVER_HOST` — Production server IP or hostname
+  - [ ] `SERVER_USER` — SSH username
+  - [ ] `SERVER_SSH_KEY` — SSH private key
+  - [ ] `DEPLOY_PATH` — Absolute path to the docker-compose directory on the server
+- [ ] Create `.env` on the production server (from `.env.example`)
+- [ ] Ensure Docker and Docker Compose v2 are installed on the server
